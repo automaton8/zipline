@@ -1,4 +1,4 @@
-from itertools import permutations
+from itertools import permutations, product, islice
 from operator import (
     add,
     ge,
@@ -151,7 +151,7 @@ class NumericalExpressionTestCase(TestCase):
 
     def test_many_inputs(self):
         """
-        Test adding NumericalExpressions with >10 inputs.
+        Test adding NumericalExpressions with >32 (NPY_MAXARGS) inputs.
         """
         # Create an initial NumericalExpression by adding two factors together.
         f = self.f
@@ -165,7 +165,10 @@ class NumericalExpressionTestCase(TestCase):
         # correct order.
         ops = (add, sub)
 
-        for i, name in enumerate(ascii_uppercase):
+        for i, name in enumerate(
+            islice(product(ascii_uppercase, ascii_uppercase), 64)
+        ):
+            name = ''.join(name)
             op = ops[i % 2]
             NewFactor = type(
                 name,
@@ -173,16 +176,18 @@ class NumericalExpressionTestCase(TestCase):
                 dict(dtype=float64_dtype, inputs=(), window_length=0),
             )
             new_factor = NewFactor()
+            self.fake_raw_data[new_factor] = full((5, 5), i + 1, float)
 
             # Again we need a NumericalExpression, so add two factors together.
             new_expr = new_factor + new_factor
-            self.fake_raw_data[new_factor] = full((5, 5), i + 1, float)
-            expr = op(expr, new_expr)
+            self.fake_raw_data[new_expr] = full((5, 5), (i + 1) * 2, float)
 
+            expr = op(expr, new_expr)
             # Double the expected output since each factor is counted twice.
             expected = op(expected, (i + 1) * 2)
+            self.fake_raw_data[expr] = full((5, 5), expected, float)
 
-        self.check_output(expr, full((5, 5), expected, float))
+        self.check_output(expr, self.fake_raw_data[expr])
 
     def test_combine_datetimes(self):
         with self.assertRaises(TypeError) as e:

@@ -296,7 +296,11 @@ class NumericalExpression(ComputableTerm):
         Compute new expression strings and a new inputs tuple for combining
         self and other with a binary operator.
         """
-        if isinstance(other, NumericalExpression):
+        if len(self.inputs) >= 32:  # NPY_MAXARGS
+            self_expr = "x_0"
+            other_expr = "x_1"
+            new_inputs = self, other
+        elif isinstance(other, NumericalExpression):
             self_expr, other_expr, new_inputs = self._merge_expressions(other)
         elif isinstance(other, Term):
             self_expr = self._expr
@@ -307,7 +311,7 @@ class NumericalExpression(ComputableTerm):
             other_expr = str(other)
             new_inputs = self.inputs
         else:
-            raise BadBinaryOperator(op, other)
+            raise BadBinaryOperator(op, self, other)
         return self_expr, other_expr, new_inputs
 
     @property
